@@ -1,599 +1,623 @@
-# Overview
+# Descripción General
 
-📘 This FastAPI-based project and its documentation represent a practical interpretation of Clean Architecture and
-Command Query Responsibility Segregation (CQRS) principles with elements of Domain-Driven Design (DDD).
-Although it's not meant to serve as a comprehensive reference or a strict application of these methodologies, the
-project demonstrates how their core ideas can be effectively put into practice in Python.
-If they're new to you, refer to the [Useful Resources](#useful-resources) section.
+📘 Este proyecto basado en FastAPI y su documentación representan una interpretación práctica de los principios de
+Clean Architecture y Command Query Responsibility Segregation (CQRS) con elementos de Domain-Driven Design (DDD).
+Aunque no pretende servir como referencia exhaustiva ni como aplicación estricta de estas metodologías, el proyecto
+demuestra cómo sus ideas fundamentales pueden ponerse en práctica de manera efectiva en Python.
+Si son nuevas para ti, consulta la sección [Recursos Útiles](#recursos-útiles).
 
-# Table of contents
+# Tabla de Contenidos
 
-1. [Overview](#overview)
-2. [Architecture Principles](#architecture-principles)
-    1. [Introduction](#introduction)
-    2. [Layered Approach](#layered-approach)
-    3. [Dependency Rule](#dependency-rule)
-        1. [Note on Adapters](#note-on-adapters)
-    4. [Layered Approach Continued](#layered-approach-continued)
-    5. [Dependency Inversion](#dependency-inversion)
-    6. [Dependency Injection](#dependency-injection)
+1. [Descripción General](#descripción-general)
+2. [Principios de Arquitectura](#principios-de-arquitectura)
+    1. [Introducción](#introducción)
+    2. [Enfoque por Capas](#enfoque-por-capas)
+    3. [Regla de Dependencias](#regla-de-dependencias)
+        1. [Nota sobre Adaptadores](#nota-sobre-adaptadores)
+    4. [Enfoque por Capas (Continuación)](#enfoque-por-capas-continuación)
+    5. [Inversión de Dependencias](#inversión-de-dependencias)
+    6. [Inyección de Dependencias](#inyección-de-dependencias)
     7. [CQRS](#cqrs)
-3. [Project](#project)
-    1. [Dependency Graphs](#dependency-graphs)
-    2. [Structure](#structure)
-    3. [Technology Stack](#technology-stack)
+3. [Proyecto](#proyecto)
+    1. [Grafos de Dependencias](#grafos-de-dependencias)
+    2. [Estructura](#estructura)
+    3. [Stack Tecnológico](#stack-tecnológico)
     4. [API](#api)
         1. [General](#general)
-        2. [Account](#account-apiv1account)
-        3. [Users](#users-apiv1users)
-    5. [Configuration](#configuration)
-        1. [Files](#files)
-        2. [Flow](#flow)
-        3. [Local Environment](#local-environment)
-        4. [Other Environments](#other-environments-devprod)
-        5. [Adding New Environments](#adding-new-environments)
-4. [Useful Resources](#useful-resources)
-5. [Support the Project](#-support-the-project)
-6. [Acknowledgements](#acknowledgements)
+        2. [Cuenta](#cuenta-apiv1account)
+        3. [Usuarios](#usuarios-apiv1users)
+    5. [Configuración](#configuración)
+        1. [Archivos](#archivos)
+        2. [Flujo](#flujo)
+        3. [Entorno Local](#entorno-local)
+        4. [Otros Entornos](#otros-entornos-devprod)
+        5. [Añadir Nuevos Entornos](#añadir-nuevos-entornos)
+4. [Recursos Útiles](#recursos-útiles)
+5. [Apoya el Proyecto](#-apoya-el-proyecto)
+6. [Agradecimientos](#agradecimientos)
 
-# Architecture Principles
+# Principios de Arquitectura
 
-## Introduction
+## Introducción
 
-This repository may be helpful for those seeking backend implementation in Python that is both framework-agnostic
-and storage-agnostic (unlike Django).
-Such flexibility can be achieved by using a web framework that doesn't impose strict software design (like FastAPI) and
-applying a layered architecture patterned after the one proposed by Robert Martin, which we'll explore further.
+Este repositorio puede resultar útil para quienes buscan una implementación backend en Python que sea tanto
+independiente del framework como independiente del almacenamiento (a diferencia de Django).
+Dicha flexibilidad se puede lograr utilizando un framework web que no imponga un diseño de software estricto
+(como FastAPI) y aplicando una arquitectura por capas basada en la propuesta por Robert Martin, que exploraremos
+a continuación.
 
-The original explanation of Clean Architecture concepts can be
-found [here](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html).
-If you're still wondering why Clean Architecture matters, read the article — it only takes about 5 minutes.
-In essence, it’s about making your application independent of external systems and highly testable.
+La explicación original de los conceptos de Clean Architecture se puede
+encontrar [aquí](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html).
+Si aún te preguntas por qué importa Clean Architecture, lee el artículo — solo toma unos 5 minutos.
+En esencia, se trata de hacer tu aplicación independiente de sistemas externos y altamente testeable.
 
 <p align="center">
-  <img src="docs/Robert_Martin_CA.png" alt="Clean Architecture Diagram" />
-  <br><em>Figure 1: <b>Robert Martin's</b> Clean Architecture Diagram</em>
+  <img src="docs/Robert_Martin_CA.png" alt="Diagrama de Clean Architecture" />
+  <br><em>Figura 1: Diagrama de Clean Architecture de <b>Robert Martin</b></em>
 </p>
 
-> "A computer program is a detailed description of the **policy** by which inputs are transformed into outputs."
+> "Un programa de computadora es una descripción detallada de la **política** mediante la cual las entradas se
+> transforman en salidas."
 >
 > — Robert Martin
 
-The most abstract policies define core business rules, while the least abstract ones handle I/O operations.
-Being closer to implementation details, less abstract policies are more likely to change.
-**Layer** represents a collection of components expressing policies at the same level of abstraction.
+Las políticas más abstractas definen las reglas de negocio fundamentales, mientras que las menos abstractas manejan
+las operaciones de E/S.
+Al estar más cerca de los detalles de implementación, las políticas menos abstractas tienen más probabilidades de cambiar.
+Una **capa** representa un conjunto de componentes que expresan políticas al mismo nivel de abstracción.
 
-Concentric circles represent boundaries between different layers.
-The meaning of arrows in the diagram will be discussed [later](#dependency-rule).
-For now, we will focus on the purpose of the layers.
+Los círculos concéntricos representan los límites entre diferentes capas.
+El significado de las flechas en el diagrama se discutirá [más adelante](#regla-de-dependencias).
+Por ahora, nos centraremos en el propósito de las capas.
 
-## Layered Approach
+## Enfoque por Capas
 
-![#gold](https://placehold.co/15x15/gold/gold.svg) **Domain Layer**
+![#gold](https://placehold.co/15x15/gold/gold.svg) **Capa de Dominio**
 
-- **Domain model** is a set of concepts, rules and behaviors that define what business (context) is and how it operates.
-  It is expressed in **ubiquitous language** — consistent terminology shared by developers and domain experts.
-  Domain layer implements domain model in code; this implementation is often called domain model.
-- The strictest domain rules are **invariants** — conditions that must always hold true for the model.
-  Enforcing invariants means maintaining data consistency in the model.
-  This can be achieved through **encapsulation**, which hides internal state and couples data with behavior.
-- Building blocks of domain model are (not limited to these):
-    - **value objects** — smart business types (no identity, immutable, equal by value).
-    - **entities** — business objects (have identity and lifecycle, equal by identity).
-    - **domain services** — containers for behavior that has no place in the components above.
-- Other domain model building blocks, unused in this project but important for deeper DDD:
-    - **aggregates** — clusters of entities (1+) that must change together as a single unit,
-      managed exclusively through their root, defining boundaries of transactional consistency.
-    - **repositories** — abstractions emulating collections of aggregate roots.
-- Domain model lies on a spectrum from anemic to rich.
-    - **anemic** — simple data types, entities are just data holders, rules and behaviors live outside.
-    - **rich** — value objects and entities encapsulate data and rules;
-      invariants are enforced internally, so the model itself prevents invalid states.
-      For components: anemic means no behavior within, rich — the contrary.
-- Domain services originally represent operations that don't naturally belong to a specific entity or value object.
-  But in projects with anemic entities, they can also contain logic that would otherwise be in those entities.
-- In early stages of development when the domain model is not yet clearly defined,
-  I'd recommend keeping entities flat and anemic, even though the latter weakens encapsulation.
-  Once domain logic is well established, some entities can, as aggregate roots, become non-flat and rich.
-  This best enforces invariants but can be tricky to design once and for all.
-- Prefer rich value objects early, freeing entities and services from an excessive burden of local rules.
-- Consider domain layer the most important, stable, and independent part of a system.
+- El **modelo de dominio** es un conjunto de conceptos, reglas y comportamientos que definen qué es el negocio
+  (contexto) y cómo opera.
+  Se expresa en **lenguaje ubicuo** — terminología consistente compartida entre desarrolladores y expertos del dominio.
+  La capa de dominio implementa el modelo de dominio en código; esta implementación a menudo se llama modelo de dominio.
+- Las reglas de dominio más estrictas son los **invariantes** — condiciones que siempre deben cumplirse para el modelo.
+  Hacer cumplir los invariantes significa mantener la consistencia de datos en el modelo.
+  Esto se puede lograr mediante **encapsulación**, que oculta el estado interno y acopla datos con comportamiento.
+- Los bloques de construcción del modelo de dominio son (sin limitarse a estos):
+    - **objetos de valor** — tipos de negocio inteligentes (sin identidad, inmutables, iguales por valor).
+    - **entidades** — objetos de negocio (tienen identidad y ciclo de vida, iguales por identidad).
+    - **servicios de dominio** — contenedores para comportamiento que no tiene lugar en los componentes anteriores.
+- Otros bloques de construcción del modelo de dominio, no utilizados en este proyecto pero importantes para DDD avanzado:
+    - **agregados** — grupos de entidades (1+) que deben cambiar juntas como una sola unidad,
+      gestionados exclusivamente a través de su raíz, definiendo los límites de la consistencia transaccional.
+    - **repositorios** — abstracciones que emulan colecciones de raíces de agregados.
+- El modelo de dominio se sitúa en un espectro que va de anémico a rico.
+    - **anémico** — tipos de datos simples, las entidades son solo contenedores de datos, las reglas y comportamientos
+      viven fuera.
+    - **rico** — los objetos de valor y las entidades encapsulan datos y reglas;
+      los invariantes se aplican internamente, de modo que el propio modelo previene estados inválidos.
+      Para los componentes: anémico significa sin comportamiento interno, rico — lo contrario.
+- Los servicios de dominio originalmente representan operaciones que no pertenecen naturalmente a una entidad o un
+  objeto de valor específico.
+  Pero en proyectos con entidades anémicas, también pueden contener lógica que de otro modo estaría en esas entidades.
+- En las primeras etapas de desarrollo, cuando el modelo de dominio aún no está claramente definido,
+  recomiendo mantener las entidades planas y anémicas, aunque esto último debilite la encapsulación.
+  Una vez que la lógica de dominio esté bien establecida, algunas entidades pueden, como raíces de agregados, volverse
+  no planas y ricas.
+  Esto es lo que mejor hace cumplir los invariantes, pero puede ser difícil de diseñar de una vez por todas.
+- Prefiere objetos de valor ricos desde el principio, liberando a las entidades y servicios de una carga excesiva
+  de reglas locales.
+- Considera la capa de dominio como la parte más importante, estable e independiente de un sistema.
 
-![#red](https://placehold.co/15x15/red/red.svg) **Application Layer**
+![#red](https://placehold.co/15x15/red/red.svg) **Capa de Aplicación**
 
-- Business defines **use case** as specification of observable behavior that delivers value by achieving a goal.
-- Within use case, the behavior is enacted by **actor** — possibly a client of the software system.
-- Actor performs use case in steps, some of which require interaction with the system.
-  These stepwise interactions with the system are handled at the application layer by **interactors**.
-  In other words, each interactor handles a single business operation matching a step within use case.
-- Interactors are stateless and cannot call each other, unlike use cases.
-  Each is invoked independently - typically by external drivers such as HTTP controllers, message consumers, or
-  scheduled jobs.
-- Interactor orchestrates domain logic and external calls needed to perform the operation.
-  Its primary responsibilities may include permission verification and transaction management.
-  To access external systems, interactors rely on **interfaces (ports)** that abstract infrastructure details.
-- Interactor uses **DTOs (Data Transfer Objects)** to exchange serializable data with external layers.
-  These are simple, behavior-free carriers - the cross-layer transport for external contracts.
-- If logic is reused across interactors: extract an application service when it falls under typical interactor
-  responsibilities; otherwise, consider evolving the domain model to include it.
-  Such evolution is a normal part of model enrichment.
-- Together, domain and application layers form the **core** of the system.
+- El negocio define un **caso de uso** como una especificación de comportamiento observable que entrega valor al
+  alcanzar un objetivo.
+- Dentro de un caso de uso, el comportamiento es ejecutado por un **actor** — posiblemente un cliente del sistema
+  de software.
+- El actor ejecuta el caso de uso en pasos, algunos de los cuales requieren interacción con el sistema.
+  Estas interacciones paso a paso con el sistema son manejadas en la capa de aplicación por **interactores**.
+  En otras palabras, cada interactor maneja una sola operación de negocio que corresponde a un paso dentro del caso
+  de uso.
+- Los interactores son sin estado y no pueden llamarse entre sí, a diferencia de los casos de uso.
+  Cada uno se invoca de forma independiente — típicamente por controladores externos como controladores HTTP,
+  consumidores de mensajes o tareas programadas.
+- El interactor orquesta la lógica de dominio y las llamadas externas necesarias para realizar la operación.
+  Sus responsabilidades principales pueden incluir la verificación de permisos y la gestión de transacciones.
+  Para acceder a sistemas externos, los interactores se apoyan en **interfaces (puertos)** que abstraen los detalles
+  de infraestructura.
+- El interactor usa **DTOs (Data Transfer Objects)** para intercambiar datos serializables con capas externas.
+  Estos son transportadores simples, sin comportamiento — el transporte entre capas para contratos externos.
+- Si la lógica se reutiliza entre interactores: extrae un servicio de aplicación cuando cae bajo las responsabilidades
+  típicas de un interactor; de lo contrario, considera evolucionar el modelo de dominio para incluirla.
+  Dicha evolución es una parte normal del enriquecimiento del modelo.
+- Juntas, las capas de dominio y aplicación forman el **núcleo** del sistema.
 
-![#green](https://placehold.co/15x15/green/green.svg) **Infrastructure Layer**
+![#green](https://placehold.co/15x15/green/green.svg) **Capa de Infraestructura**
 
-- This layer is responsible for adapting the core to external systems.
-- It consists of **adapters**: driving and driven.
-  Driving adapters call into the core, translating external requests into interactor calls.
-  Driven adapters (port implementations) are called by the core via ports, allowing the core to interact with external
-  systems (databases, APIs, file systems, etc.) while keeping the business logic decoupled.
-- Related adapter logic can be grouped into **infrastructure service**.
-
-> [!IMPORTANT]
-> - Clean Architecture doesn't prescribe any particular number of layers.
-    The key is to follow the Dependency Rule, which is explained in the next section.
-
-## Dependency Rule
-
-A dependency occurs when one software component relies on another to operate.
-If you were to split all blocks of code into separate modules, dependencies would manifest as imports between those
-modules.
-Typically, dependencies are graphically depicted in UML style in such a way that
-
-> [!IMPORTANT]
-> - `A -> B` (**A points to B**) means **A depends on B**.
-
-The key principle of Clean Architecture is the **Dependency Rule**.
-This rule states that **more abstract software components must not depend on more concrete ones.**
-In other words, dependencies must never point outwards.
+- Esta capa es responsable de adaptar el núcleo a sistemas externos.
+- Consiste en **adaptadores**: conductores y conducidos.
+  Los adaptadores conductores invocan al núcleo, traduciendo solicitudes externas en llamadas a interactores.
+  Los adaptadores conducidos (implementaciones de puertos) son invocados por el núcleo a través de puertos, permitiendo
+  al núcleo interactuar con sistemas externos (bases de datos, APIs, sistemas de archivos, etc.) manteniendo la lógica
+  de negocio desacoplada.
+- La lógica de adaptadores relacionada puede agruparse en un **servicio de infraestructura**.
 
 > [!IMPORTANT]
-> - Domain and application layers may import external tools and libraries to the extent necessary for describing
-    business logic - those that extend the programming language's capabilities (math/numeric utilities, time zone
-    conversion, object modeling, etc.). This trades some core stability for clarity and expressiveness. What is not
-    acceptable are dependencies that bind business logic to implementation details (including frameworks) or to
-    out-of-process systems (databases, brokers, file systems, cloud SDKs, etc.).
->
-> - Components within the same layer **can depend on each other.** For example, components in the Infrastructure layer
-    can interact with one another without crossing into other layers.
->
-> - Components in any outer layer can depend on components in any inner layer, not necessarily the one closest to
-    them. For example, components in the Presentation layer can directly depend on the Domain layer, bypassing the
-    Application and Infrastructure layers.
->
-> - Avoid letting business logic leak into peripheral details, such as raising business-specific exceptions in the
-    Infrastructure layer without re-raising them in the business logic or declaring domain rules outside the Domain
-    layer.
->
-> - In specific cases where database constraints enforce business rules, the Infrastructure layer may raise
-    domain-specific exceptions, such as `UsernameAlreadyExistsError` for a `UNIQUE CONSTRAINT` violation.
-    Handling these exceptions in the Application layer ensures that any business logic implemented in adapters remains
-    under control.
->
-> - Avoid introducing elements in inner layers that specifically exist to support outer layers.
-    For example, you might be tempted to place something in the Application layer that exists solely to support a
-    specific piece of infrastructure.
-    At first glance, based on imports, it might seem that the Dependency Rule isn't violated. However, in reality,
-    you've broken the core idea of the rule by embedding infrastructure concerns (more concrete) into the business logic
-    (more abstract).
+> - Clean Architecture no prescribe ningún número particular de capas.
+    Lo clave es seguir la Regla de Dependencias, que se explica en la siguiente sección.
 
-### Note on Adapters
+## Regla de Dependencias
 
-The **Infrastructure layer** in Clean Architecture acts as the adapter layer — connecting the application to
-external systems.
-In this project, we treat both **Infrastructure** and **Presentation** as adapters, since both adapt the application to
-the outside world.
-Speaking of dependencies direction, the diagram by R. Martin in Figure 1 can, without significant loss, be replaced by a
-more concise and pragmatic one — where the adapter layer serves as a "bridge", depending both on the internal layers of
-the application and external components.
-This adjustment implies **reversing** the arrow from the blue layer to the green layer in R. Martin's diagram.
+Una dependencia ocurre cuando un componente de software depende de otro para funcionar.
+Si dividieras todos los bloques de código en módulos separados, las dependencias se manifestarían como importaciones
+entre esos módulos.
+Típicamente, las dependencias se representan gráficamente en estilo UML de tal manera que
 
-The proposed solution is a **trade-off**.
-It doesn't strictly follow R. Martin's original concept but avoids introducing excessive abstractions with
-implementations outside the application's boundaries.
-Pursuing purity on the outermost layer is more likely to result in overengineering than in practical gains.
+> [!IMPORTANT]
+> - `A -> B` (**A apunta a B**) significa **A depende de B**.
 
-My approach retains nearly all advantages of Clean Architecture while simplifying real-world development.
-When needed, adapters can be removed along with the external components they're written for, which isn't a
-significant issue.
+El principio clave de Clean Architecture es la **Regla de Dependencias**.
+Esta regla establece que **los componentes de software más abstractos no deben depender de los más concretos.**
+En otras palabras, las dependencias nunca deben apuntar hacia afuera.
 
-Let’s agree, for this project, to revise the principle:
+> [!IMPORTANT]
+> - Las capas de dominio y aplicación pueden importar herramientas y bibliotecas externas en la medida necesaria para
+    describir la lógica de negocio — aquellas que extienden las capacidades del lenguaje de programación (utilidades
+    matemáticas/numéricas, conversión de zonas horarias, modelado de objetos, etc.). Esto sacrifica algo de estabilidad
+    del núcleo a cambio de claridad y expresividad. Lo que no es aceptable son dependencias que vinculen la lógica de
+    negocio con detalles de implementación (incluidos frameworks) o con sistemas fuera de proceso (bases de datos,
+    brokers, sistemas de archivos, SDKs en la nube, etc.).
+>
+> - Los componentes dentro de la misma capa **pueden depender entre sí.** Por ejemplo, los componentes en la capa de
+    Infraestructura pueden interactuar entre sí sin cruzar a otras capas.
+>
+> - Los componentes en cualquier capa externa pueden depender de componentes en cualquier capa interna, no
+    necesariamente la más cercana a ellos. Por ejemplo, los componentes en la capa de Presentación pueden depender
+    directamente de la capa de Dominio, saltándose las capas de Aplicación e Infraestructura.
+>
+> - Evita que la lógica de negocio se filtre a detalles periféricos, como lanzar excepciones específicas del negocio
+    en la capa de Infraestructura sin relanzarlas en la lógica de negocio o declarar reglas de dominio fuera de la
+    capa de Dominio.
+>
+> - En casos específicos donde las restricciones de la base de datos aplican reglas de negocio, la capa de
+    Infraestructura puede lanzar excepciones específicas del dominio, como `UsernameAlreadyExistsError` para una
+    violación de `UNIQUE CONSTRAINT`.
+    Manejar estas excepciones en la capa de Aplicación asegura que cualquier lógica de negocio implementada en
+    adaptadores permanezca bajo control.
+>
+> - Evita introducir elementos en capas internas que existan específicamente para soportar capas externas.
+    Por ejemplo, podrías estar tentado a colocar algo en la capa de Aplicación que existe únicamente para soportar
+    una pieza específica de infraestructura.
+    A primera vista, basándose en las importaciones, podría parecer que la Regla de Dependencias no se viola. Sin
+    embargo, en realidad, has roto la idea central de la regla al integrar preocupaciones de infraestructura (más
+    concretas) en la lógica de negocio (más abstracta).
+
+### Nota sobre Adaptadores
+
+La **capa de Infraestructura** en Clean Architecture actúa como la capa de adaptadores — conectando la aplicación con
+sistemas externos.
+En este proyecto, tratamos tanto la **Infraestructura** como la **Presentación** como adaptadores, ya que ambas adaptan
+la aplicación al mundo exterior.
+En cuanto a la dirección de las dependencias, el diagrama de R. Martin en la Figura 1 puede, sin pérdida significativa,
+ser reemplazado por uno más conciso y pragmático — donde la capa de adaptadores sirve como un "puente", dependiendo
+tanto de las capas internas de la aplicación como de los componentes externos.
+Este ajuste implica **invertir** la flecha de la capa azul a la capa verde en el diagrama de R. Martin.
+
+La solución propuesta es un **compromiso**.
+No sigue estrictamente el concepto original de R. Martin, pero evita introducir abstracciones excesivas con
+implementaciones fuera de los límites de la aplicación.
+Perseguir la pureza en la capa más externa es más probable que resulte en sobreingeniería que en beneficios prácticos.
+
+Mi enfoque conserva casi todas las ventajas de Clean Architecture mientras simplifica el desarrollo en el mundo real.
+Cuando sea necesario, los adaptadores pueden eliminarse junto con los componentes externos para los que fueron escritos,
+lo cual no supone un problema significativo.
+
+Acordemos, para este proyecto, revisar el principio:
 
 Original:
-> "Dependencies must never point outwards."
+> "Las dependencias nunca deben apuntar hacia afuera."
 
-Revised:
-> "Dependencies must never point outwards **within the core**."
+Revisado:
+> "Las dependencias nunca deben apuntar hacia afuera **dentro del núcleo**."
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 10px; justify-items: center;">
-  <img src="docs/onion_1.svg" alt="Revised Interpretation of CA-D" style="width: 400px; height: auto;" />
-  <img src="docs/onion_2.svg" alt="Revised Interpretation of CA-D, alternative" style="width: 400px; height: auto;" />
+  <img src="docs/onion_1.svg" alt="Interpretación Revisada de CA-D" style="width: 400px; height: auto;" />
+  <img src="docs/onion_2.svg" alt="Interpretación Revisada de CA-D, alternativa" style="width: 400px; height: auto;" />
 </div>
 <p align="center" style="font-size: 14px;">
-  <em>Figure 2: <b>Revised Interpretation</b> of Clean Architecture<br>
-  (diagrammed — original and alternative representation)
+  <em>Figura 2: <b>Interpretación Revisada</b> de Clean Architecture<br>
+  (diagramada — representación original y alternativa)
   </em>
 </p>
 
-## Layered Approach Continued
+## Enfoque por Capas (Continuación)
 
-![#blue](https://placehold.co/15x15/blue/blue.svg) **Presentation Layer**
+![#blue](https://placehold.co/15x15/blue/blue.svg) **Capa de Presentación**
 
 > [!NOTE]
-> In the original diagram, the Presentation layer isn't explicitly distinguished and is instead included within the
-> Interface Adapters layer. I chose to introduce it as a separate layer, marked in blue, as I see it as even more
-> external compared to typical adapters.
+> En el diagrama original, la capa de Presentación no está explícitamente diferenciada y en su lugar se incluye dentro
+> de la capa de Adaptadores de Interfaz. Elegí introducirla como una capa separada, marcada en azul, ya que la veo
+> como aún más externa en comparación con los adaptadores típicos.
 
-- This layer handles external requests and includes **controllers** that validate inputs and pass them to the
-  interactors in the Application layer. More abstract layers of the program assume that request data is already
-  validated, allowing them to focus solely on their core logic.
-- Controllers must be as thin as possible, containing no logic beyond basic input validation and routing. Their
-  role is to act as an intermediary between the application and external systems (e.g., FastAPI).
+- Esta capa maneja las solicitudes externas e incluye **controladores** que validan las entradas y las pasan a los
+  interactores en la capa de Aplicación. Las capas más abstractas del programa asumen que los datos de la solicitud
+  ya están validados, permitiéndoles centrarse únicamente en su lógica central.
+- Los controladores deben ser lo más delgados posible, sin contener más lógica que la validación básica de entrada
+  y el enrutamiento. Su rol es actuar como intermediarios entre la aplicación y los sistemas externos (ej., FastAPI).
 
 > [!IMPORTANT]
-> - **_Basic_** validation, like checking whether the structure of the incoming request matches the structure of the
-    defined request model (e.g., type safety and required fields) should be performed by controllers at this layer,
-    while **_business rule_** validation (e.g., ensuring the email domain is allowed, verifying the uniqueness of
-    username, or checking if a user meets the required age) belongs to the Domain or Application layer.
-> - Business rule validation often involves relationships between fields, such as ensuring that a discount applies only
-    within a specific date range or a promotion code is valid for orders above a certain total.
-> - **Carefully** consider using Pydantic for business rule validation. While convenient, Pydantic models are slower
-    than regular dataclasses and reduce application core stability by coupling business logic to an external library.
-> - If you choose Pydantic (or a similar tool bundled with web framework) for business model definitions, ensure that
-    a Pydantic model in business layers is a separate model from the one in the Presentation layer, even if their
-    structure appears identical. Mixing data presentation logic with business logic is a common mistake made early in
-    development to save effort on creating separate models and field mapping, often due to not understanding that
-    structural similarities are temporary.
+> - La validación **_básica_**, como verificar si la estructura de la solicitud entrante coincide con la estructura del
+    modelo de solicitud definido (ej., seguridad de tipos y campos obligatorios) debe ser realizada por los
+    controladores en esta capa, mientras que la validación de **_reglas de negocio_** (ej., asegurar que el dominio
+    del email está permitido, verificar la unicidad del nombre de usuario, o comprobar si un usuario cumple la edad
+    requerida) pertenece a la capa de Dominio o Aplicación.
+> - La validación de reglas de negocio a menudo involucra relaciones entre campos, como asegurar que un descuento
+    se aplique solo dentro de un rango de fechas específico o que un código de promoción sea válido para pedidos
+    por encima de cierto total.
+> - **Considera cuidadosamente** el uso de Pydantic para la validación de reglas de negocio. Aunque es conveniente,
+    los modelos de Pydantic son más lentos que los dataclasses regulares y reducen la estabilidad del núcleo de la
+    aplicación al acoplar la lógica de negocio con una biblioteca externa.
+> - Si eliges Pydantic (o una herramienta similar incluida con el framework web) para las definiciones de modelos
+    de negocio, asegúrate de que un modelo Pydantic en las capas de negocio sea un modelo separado del de la capa
+    de Presentación, incluso si su estructura parece idéntica. Mezclar lógica de presentación de datos con lógica
+    de negocio es un error común cometido al inicio del desarrollo para ahorrar esfuerzo en la creación de modelos
+    separados y el mapeo de campos, a menudo por no entender que las similitudes estructurales son temporales.
 
-![#gray](https://placehold.co/15x15/gray/gray.svg) **External Layer**
+![#gray](https://placehold.co/15x15/gray/gray.svg) **Capa Externa**
 
 > [!NOTE]
-> In the original diagram, external components are included in the blue layer (Frameworks & Drivers).
-> I've marked them in gray to clearly distinguish them from layers within the application's boundaries.
+> En el diagrama original, los componentes externos se incluyen en la capa azul (Frameworks y Drivers).
+> Los he marcado en gris para distinguirlos claramente de las capas dentro de los límites de la aplicación.
 
-- This layer represents fully external components such as web frameworks (e.g. FastAPI itself), databases, third-party
-  APIs, and other services.
-- These components operate outside the application’s core logic and can be easily replaced or modified without affecting
-  the business rules, as they interact with the application only through the Presentation and Infrastructure layers.
-
-<p align="center">
-  <img src="docs/dep_graph_basic.svg" alt="Basic Dependency Graph" />
-  <br><em>Figure 3: Basic Dependency Graph</em>
-</p>
-
-## Dependency Inversion
-
-The **dependency inversion** technique enables reversing dependencies **by introducing an interface** between
-components, allowing an inner layer to communicate with an outer layer while adhering to the Dependency Rule.
+- Esta capa representa componentes completamente externos como frameworks web (ej., el propio FastAPI), bases de datos,
+  APIs de terceros y otros servicios.
+- Estos componentes operan fuera de la lógica central de la aplicación y pueden ser fácilmente reemplazados o
+  modificados sin afectar las reglas de negocio, ya que interactúan con la aplicación solo a través de las capas de
+  Presentación e Infraestructura.
 
 <p align="center">
-  <img src="docs/dep_graph_inv_corrupted.svg" alt="Corrupted Dependency" />
-  <br><em>Figure 4: <b>Corrupted</b> Dependency</em>
+  <img src="docs/dep_graph_basic.svg" alt="Grafo Básico de Dependencias" />
+  <br><em>Figura 3: Grafo Básico de Dependencias</em>
 </p>
 
-In this example, the Application component depends directly on the Infrastructure component, violating the Dependency
-Rule.
-This creates "corrupted" dependencies, where changes in the Infrastructure layer can propagate to and unintentionally
-affect the Application layer.
+## Inversión de Dependencias
+
+La técnica de **inversión de dependencias** permite invertir dependencias **introduciendo una interfaz** entre
+componentes, permitiendo que una capa interna se comunique con una capa externa mientras se adhiere a la Regla de
+Dependencias.
 
 <p align="center">
-  <img src="docs/dep_graph_inv_correct.svg" alt="Correct Dependency" />
-  <br><em>Figure 5: <b>Correct</b> Dependency</em>
+  <img src="docs/dep_graph_inv_corrupted.svg" alt="Dependencia Corrupta" />
+  <br><em>Figura 4: Dependencia <b>Corrupta</b></em>
 </p>
 
-In the correct design, the Application layer component depends on an **abstraction (port)**, and the Infrastructure
-layer component **implements** the corresponding interface.
-This makes the Infrastructure component an adapter for the port, effectively turning it into a plugin for
-Application layer.
-Such a design adheres to the **Dependency Inversion Principle (DIP)**, minimizing the impact of infrastructure changes
-on core business logic.
-
-## Dependency Injection
-
-The idea behind **Dependency Injection** is that a component shouldn't create the dependencies it needs but rather
-receive them.
-From this definition, it's clear that one common way to implement DI is by passing dependencies as arguments to the
-`__init__` method or functions.
-
-But how exactly should these dependencies be initialized (and finalized)?
-
-**DI frameworks** offer an elegant solution by automatically creating necessary objects (while managing their
-**lifecycle**) and injecting them where needed.
-This makes the process of dependency injection much cleaner and easier to manage.
+En este ejemplo, el componente de Aplicación depende directamente del componente de Infraestructura, violando la
+Regla de Dependencias.
+Esto crea dependencias "corruptas", donde los cambios en la capa de Infraestructura pueden propagarse y afectar
+involuntariamente a la capa de Aplicación.
 
 <p align="center">
-  <img src="docs/dep_graph_inv_correct_di.svg" alt="Correct Dependency with DI" />
-  <br><em>Figure 6: <b>Correct</b> Dependency <b>with DI</b></em>
+  <img src="docs/dep_graph_inv_correct.svg" alt="Dependencia Correcta" />
+  <br><em>Figura 5: Dependencia <b>Correcta</b></em>
 </p>
 
-FastAPI provides a built-in **DI mechanism** called [Depends](https://fastapi.tiangolo.com/tutorial/dependencies/),
-which tends to leak into different layers of the application. This creates tight coupling to FastAPI, violating the
-principles of Clean Architecture, where the web framework belongs to the outermost layer and should remain easily
-replaceable.
+En el diseño correcto, el componente de la capa de Aplicación depende de una **abstracción (puerto)**, y el componente
+de la capa de Infraestructura **implementa** la interfaz correspondiente.
+Esto convierte al componente de Infraestructura en un adaptador para el puerto, convirtiéndolo efectivamente en un
+plugin para la capa de Aplicación.
+Tal diseño se adhiere al **Principio de Inversión de Dependencias (DIP)**, minimizando el impacto de los cambios de
+infraestructura en la lógica de negocio central.
 
-Refactoring the codebase to remove `Depends` when switching frameworks can be unnecessarily costly. It also has [other
-limitations](https://dishka.readthedocs.io/en/stable/alternatives.html#why-not-fastapi) that are beyond the scope of
-this README. Personally, I prefer [**Dishka**](https://dishka.readthedocs.io/en/stable/index.html) — a solution that
-avoids these issues and remains framework-agnostic.
+## Inyección de Dependencias
+
+La idea detrás de la **Inyección de Dependencias** es que un componente no debería crear las dependencias que necesita,
+sino recibirlas.
+De esta definición, queda claro que una forma común de implementar DI es pasando las dependencias como argumentos al
+método `__init__` o a funciones.
+
+¿Pero cómo exactamente deben inicializarse (y finalizarse) estas dependencias?
+
+Los **frameworks de DI** ofrecen una solución elegante al crear automáticamente los objetos necesarios (mientras
+gestionan su **ciclo de vida**) e inyectarlos donde se necesiten.
+Esto hace que el proceso de inyección de dependencias sea mucho más limpio y fácil de gestionar.
+
+<p align="center">
+  <img src="docs/dep_graph_inv_correct_di.svg" alt="Dependencia Correcta con DI" />
+  <br><em>Figura 6: Dependencia <b>Correcta</b> <b>con DI</b></em>
+</p>
+
+FastAPI proporciona un **mecanismo de DI** integrado llamado [Depends](https://fastapi.tiangolo.com/tutorial/dependencies/),
+que tiende a filtrarse a diferentes capas de la aplicación. Esto crea un acoplamiento fuerte con FastAPI, violando los
+principios de Clean Architecture, donde el framework web pertenece a la capa más externa y debería ser fácilmente
+reemplazable.
+
+Refactorizar el código para eliminar `Depends` al cambiar de framework puede ser innecesariamente costoso. También tiene
+[otras limitaciones](https://dishka.readthedocs.io/en/stable/alternatives.html#why-not-fastapi) que están fuera del
+alcance de este README. Personalmente, prefiero [**Dishka**](https://dishka.readthedocs.io/en/stable/index.html) — una
+solución que evita estos problemas y se mantiene agnóstica al framework.
 
 ## CQRS
 
-The project implements Command Query Responsibility Segregation (**CQRS**) — a pattern that separates read and write
-operations into distinct paths.
+El proyecto implementa Command Query Responsibility Segregation (**CQRS**) — un patrón que separa las operaciones de
+lectura y escritura en caminos distintos.
 
-- **Commands** (via interactors) handle write operations and business-critical reads using command gateways that work
-  with entities and value objects.
-- **Queries** are implemented through query services (similar contract to interactors) that use query gateways to fetch
-  data optimized for presentation as query models.
+- Los **Comandos** (a través de interactores) manejan las operaciones de escritura y las lecturas críticas para el
+  negocio usando gateways de comandos que trabajan con entidades y objetos de valor.
+- Las **Consultas** se implementan a través de servicios de consulta (contrato similar a los interactores) que usan
+  gateways de consulta para obtener datos optimizados para la presentación como modelos de consulta.
 
-This separation enables:
+Esta separación permite:
 
-- Efficient read operations through specialized query gates, avoiding loading complete entity models.
-- Performance optimization by tailoring data retrieval to specific view requirements.
-- Flexibility to combine data from multiple models in read operations with minimal field selection.
+- Operaciones de lectura eficientes a través de gateways de consulta especializados, evitando cargar modelos completos
+  de entidades.
+- Optimización del rendimiento adaptando la recuperación de datos a los requisitos específicos de cada vista.
+- Flexibilidad para combinar datos de múltiples modelos en operaciones de lectura con selección mínima de campos.
 
-# Project
+# Proyecto
 
-## Dependency Graphs
+## Grafos de Dependencias
 
 <details>
-  <summary>Application Controller - Interactor</summary>
+  <summary>Controlador de Aplicación - Interactor</summary>
 
   <p align="center">
-  <img src="docs/application_controller_interactor.svg" alt="Application Controller - Interactor" />
-  <br><em>Figure 7: Application Controller - Interactor</em>
+  <img src="docs/application_controller_interactor.svg" alt="Controlador de Aplicación - Interactor" />
+  <br><em>Figura 7: Controlador de Aplicación - Interactor</em>
   </p>
 
-In the presentation layer, a Pydantic model appears when working with FastAPI and detailed information needs to be
-displayed in OpenAPI documentation.
-You might also find it convenient to validate certain fields using Pydantic;
-however, be cautious to avoid leaking business rules into the presentation layer.
+En la capa de presentación, un modelo Pydantic aparece cuando se trabaja con FastAPI y se necesita mostrar información
+detallada en la documentación de OpenAPI.
+También puede resultarte conveniente validar ciertos campos usando Pydantic;
+sin embargo, ten cuidado de no filtrar reglas de negocio en la capa de presentación.
 
-For request data, a plain `dataclass` is often sufficient.
-Unlike lighter alternatives, it provides attribute access, which is more convenient for working in the application
-layer.
-However, such access is unnecessary for data returned to the client, where a `TypedDict` is sufficient (it's
-approximately twice as fast to create as a dataclass with slots, with comparable access times).
+Para los datos de solicitud, un `dataclass` simple suele ser suficiente.
+A diferencia de alternativas más ligeras, proporciona acceso por atributos, lo cual es más conveniente para trabajar
+en la capa de aplicación.
+Sin embargo, dicho acceso es innecesario para los datos devueltos al cliente, donde un `TypedDict` es suficiente (es
+aproximadamente el doble de rápido de crear que un dataclass con slots, con tiempos de acceso comparables).
 
 </details>
 
 <details>
-  <summary>Application Interactor</summary>
+  <summary>Interactor de Aplicación</summary>
 
   <p align="center">
-  <img src="docs/application_interactor.svg" alt="Application Interactor" />
-  <br><em>Figure 8: Application Interactor</em>
-  </p>
-
-</details>
-
-<details>
-  <summary>Application Interactor - Adapter</summary>
-
-  <p align="center">
-  <img src="docs/application_interactor_adapter.svg" alt="Application Interactor - Adapter" />
-  <br><em>Figure 9: Application Interactor - Adapter</em>
+  <img src="docs/application_interactor.svg" alt="Interactor de Aplicación" />
+  <br><em>Figura 8: Interactor de Aplicación</em>
   </p>
 
 </details>
 
 <details>
-  <summary>Domain - Adapter</summary>
+  <summary>Interactor de Aplicación - Adaptador</summary>
 
   <p align="center">
-  <img src="docs/domain_adapter.svg" alt="Domain - Adapter" />
-  <br><em>Figure 10: Domain - Adapter</em>
+  <img src="docs/application_interactor_adapter.svg" alt="Interactor de Aplicación - Adaptador" />
+  <br><em>Figura 9: Interactor de Aplicación - Adaptador</em>
   </p>
 
 </details>
 
 <details>
-  <summary>Infrastructure Controller - Handler</summary>
+  <summary>Dominio - Adaptador</summary>
+
   <p align="center">
-  <img src="docs/infrastructure_controller_handler.svg" alt="Infrastructure Controller - Handler" />
-  <br><em>Figure 11: Infrastructure Controller - Handler</em>
+  <img src="docs/domain_adapter.svg" alt="Dominio - Adaptador" />
+  <br><em>Figura 10: Dominio - Adaptador</em>
   </p>
-
-An infrastructure handler may be required as a temporary solution in cases where a separate context exists but isn't
-physically separated into a distinct domain (e.g., not implemented as a standalone module within a monolithic
-application).
-In such cases, the handler operates as an application-level interactor but resides in the infrastructure layer.
-
-Initially, I called these handlers interactors, but the community reacted very negatively to the idea of interactors in
-the infrastructure layer, refusing to acknowledge that these essentially belong to another context.
-
-In this application, such handlers include those managing user accounts, such as registration, login, and logout.
 
 </details>
 
 <details>
-  <summary>Infrastructure Handler</summary>
+  <summary>Controlador de Infraestructura - Handler</summary>
   <p align="center">
-  <img src="docs/infrastructure_handler.svg" alt="Infrastructure Handler" />
-  <br><em>Figure 12: Infrastructure Handler</em>
+  <img src="docs/infrastructure_controller_handler.svg" alt="Controlador de Infraestructura - Handler" />
+  <br><em>Figura 11: Controlador de Infraestructura - Handler</em>
   </p>
 
-Ports in infrastructure are not commonly seen — typically, only concrete implementations are present.
-However, in this project, since we have a separate layer of adapters (presentation) located outside the infrastructure,
-ports are necessary to comply with the dependency rule.
+Un handler de infraestructura puede ser necesario como solución temporal en casos donde existe un contexto separado pero
+no está físicamente separado en un dominio distinto (ej., no implementado como un módulo independiente dentro de una
+aplicación monolítica).
+En tales casos, el handler opera como un interactor a nivel de aplicación pero reside en la capa de infraestructura.
+
+Inicialmente, llamé a estos handlers interactores, pero la comunidad reaccionó muy negativamente a la idea de
+interactores en la capa de infraestructura, negándose a reconocer que estos esencialmente pertenecen a otro contexto.
+
+En esta aplicación, dichos handlers incluyen los que gestionan cuentas de usuario, como registro, inicio de sesión y
+cierre de sesión.
+
+</details>
+
+<details>
+  <summary>Handler de Infraestructura</summary>
+  <p align="center">
+  <img src="docs/infrastructure_handler.svg" alt="Handler de Infraestructura" />
+  <br><em>Figura 12: Handler de Infraestructura</em>
+  </p>
+
+Los puertos en infraestructura no son comunes — típicamente, solo están presentes las implementaciones concretas.
+Sin embargo, en este proyecto, dado que tenemos una capa separada de adaptadores (presentación) ubicada fuera de la
+infraestructura, los puertos son necesarios para cumplir con la regla de dependencias.
 
 </details>
 
 <details>
 
-**Identity Provider (IdP)** abstracts authentication details, linking the main business context with the authentication
-context. In this example, the authentication context is not physically separated, making it an infrastructure detail.
-However, it can potentially evolve into a separate domain.
+El **Identity Provider (IdP)** abstrae los detalles de autenticación, vinculando el contexto de negocio principal con el
+contexto de autenticación. En este ejemplo, el contexto de autenticación no está físicamente separado, convirtiéndolo en
+un detalle de infraestructura. Sin embargo, puede potencialmente evolucionar a un dominio separado.
 
   <summary>Identity Provider</summary>
   <p align="center">
   <img src="docs/identity_provider.svg" alt="Identity Provider" />
-  <br><em>Figure 13: Identity Provider</em>
+  <br><em>Figura 13: Identity Provider</em>
   </p>
 
-Normally, IdP is expected to provide all information about current user.
-However, in this project, since roles are not stored in sessions or tokens, retrieving them in main context was more
-natural.
+Normalmente, se espera que el IdP proporcione toda la información sobre el usuario actual.
+Sin embargo, en este proyecto, dado que los roles no se almacenan en sesiones o tokens, recuperarlos en el contexto
+principal era más natural.
 
 </details>
 
-## Structure
+## Estructura
 
 ```
 .
-├── config/...                                   # configuration files and scripts, includes Docker
-├── Makefile                                     # shortcuts for setup and common tasks
-├── scripts/...                                  # helper scripts
-├── pyproject.toml                               # tooling and environment config (uv)
+├── config/...                                   # archivos de configuración y scripts, incluye Docker
+├── Makefile                                     # atajos para configuración y tareas comunes
+├── scripts/...                                  # scripts auxiliares
+├── pyproject.toml                               # configuración de herramientas y entorno (uv)
 ├── ...
 └── src/
     └── app/
-        ├── domain/                              # domain layer
-        │   ├── services/...                     # domain layer services
-        │   ├── entities/...                     # entities (have identity)
-        │   │   ├── base.py                      # base declarations
-        │   │   └── ...                          # concrete entities
-        │   ├── value_objects/...                # value objects (no identity)
-        │   │   ├── base.py                      # base declarations
-        │   │   └── ...                          # concrete value objects
-        │   └── ...                              # ports, enums, exceptions, etc.
+        ├── domain/                              # capa de dominio
+        │   ├── services/...                     # servicios de la capa de dominio
+        │   ├── entities/...                     # entidades (tienen identidad)
+        │   │   ├── base.py                      # declaraciones base
+        │   │   └── ...                          # entidades concretas
+        │   ├── value_objects/...                # objetos de valor (sin identidad)
+        │   │   ├── base.py                      # declaraciones base
+        │   │   └── ...                          # objetos de valor concretos
+        │   └── ...                              # puertos, enums, excepciones, etc.
         │
-        ├── application/...                      # application layer
-        │   ├── commands/                        # write ops, business-critical reads
+        ├── application/...                      # capa de aplicación
+        │   ├── commands/                        # operaciones de escritura, lecturas críticas para el negocio
         │   │   ├── create_user.py               # interactor
-        │   │   └── ...                          # other interactors
-        │   ├── queries/                         # optimized read operations
-        │   │   ├── list_users.py                # query service
-        │   │   └── ...                          # other query services
-        │   └── common/                          # common layer objects
-        │       ├── services/...                 # authorization, etc.
-        │       └── ...                          # ports, exceptions, etc.
+        │   │   └── ...                          # otros interactores
+        │   ├── queries/                         # operaciones de lectura optimizadas
+        │   │   ├── list_users.py                # servicio de consulta
+        │   │   └── ...                          # otros servicios de consulta
+        │   └── common/                          # objetos comunes de la capa
+        │       ├── services/...                 # autorización, etc.
+        │       └── ...                          # puertos, excepciones, etc.
         │
-        ├── infrastructure/...                   # infrastructure layer
-        │   ├── adapters/...                     # port adapters
-        │   ├── auth/...                         # auth context (session-based)
-        │   └── ...                              # persistence, exceptions, etc.
+        ├── infrastructure/...                   # capa de infraestructura
+        │   ├── adapters/...                     # adaptadores de puertos
+        │   ├── auth/...                         # contexto de autenticación (basado en sesiones)
+        │   └── ...                              # persistencia, excepciones, etc.
         │
-        ├── presentation/...                     # presentation layer
-        │   └── http/                            # http interface
-        │       ├── auth/...                     # web auth logic
-        │       ├── controllers/...              # controllers and routers
-        │       └── errors/...                   # error handling helpers
+        ├── presentation/...                     # capa de presentación
+        │   └── http/                            # interfaz http
+        │       ├── auth/...                     # lógica de autenticación web
+        │       ├── controllers/...              # controladores y routers
+        │       └── errors/...                   # utilidades de manejo de errores
         │
         ├── setup/
-        │   ├── ioc/...                          # dependency injection setup
-        │   ├── config/...                       # app settings
-        │   └── app_factory.py                   # app builder
-        │  
-        └── run.py                               # app entry point
+        │   ├── ioc/...                          # configuración de inyección de dependencias
+        │   ├── config/...                       # ajustes de la aplicación
+        │   └── app_factory.py                   # constructor de la aplicación
+        │
+        └── run.py                               # punto de entrada de la aplicación
 ```
 
-## Technology Stack
+## Stack Tecnológico
 
 - **Python**: `3.13`
 - **Core**: `alembic`, `alembic-postgresql-enum`, `bcrypt`, `dishka`, `fastapi-error-map`, `fastapi`, `orjson`,
   `psycopg3[binary]`, `pyjwt[crypto]`, `sqlalchemy[mypy]`, `uuid-utils`, `uvicorn`, `uvloop`
-- **Development**: `deptry`, `import-linter`, `mypy`, `pre-commit`, `ruff`, `slotscheck`
+- **Desarrollo**: `deptry`, `import-linter`, `mypy`, `pre-commit`, `ruff`, `slotscheck`
 - **Testing**: `coverage`, `line-profiler`, `pytest`, `pytest-asyncio`
 
 ## API
 
 <p align="center">
   <img src="docs/handlers.png" alt="Handlers" />
-  <br><em>Figure 14: Handlers</em>
+  <br><em>Figura 14: Handlers</em>
 </p>
 
 ### General
 
-- `/` (GET): Open to **everyone**.
-    - Redirects to Swagger documentation.
-- `/api/v1/health` (GET): Open to **everyone**.
-    - Returns `200 OK` if the API is alive.
+- `/` (GET): Abierto a **todos**.
+    - Redirige a la documentación de Swagger.
+- `/api/v1/health` (GET): Abierto a **todos**.
+    - Devuelve `200 OK` si la API está activa.
 
-### Account (`/api/v1/account`)
+### Cuenta (`/api/v1/account`)
 
-- `/signup` (POST): Open to **everyone**.
-    - Registers a new user with validation and uniqueness checks.
-    - Passwords are peppered, salted, and stored as hashes.
-    - A logged-in user cannot sign up until the session expires or is terminated.
-- `/login` (POST): Open to **everyone**.
-    - Authenticates registered user, sets a JWT access token with a session ID in cookies, and creates a session.
-    - A logged-in user cannot log in again until the session expires or is terminated.
-    - Authentication renews automatically when accessing protected routes before expiration.
-    - If the JWT is invalid, expired, or the session is terminated, the user loses authentication. [^1]
-- `/password` (PUT): Open to **authenticated users**.
-    - The current user can change their password.
-    - New password must differ from current password.
-- `/logout` (DELETE): Open to **authenticated users**.
-    - Logs the user out by deleting the JWT access token from cookies and removing the session from the database.
+- `/signup` (POST): Abierto a **todos**.
+    - Registra un nuevo usuario con validación y verificaciones de unicidad.
+    - Las contraseñas se procesan con pepper, salt y se almacenan como hashes.
+    - Un usuario con sesión iniciada no puede registrarse hasta que la sesión expire o sea terminada.
+- `/login` (POST): Abierto a **todos**.
+    - Autentica al usuario registrado, establece un token de acceso JWT con un ID de sesión en cookies y crea una sesión.
+    - Un usuario con sesión iniciada no puede iniciar sesión nuevamente hasta que la sesión expire o sea terminada.
+    - La autenticación se renueva automáticamente al acceder a rutas protegidas antes de la expiración.
+    - Si el JWT es inválido, ha expirado o la sesión ha sido terminada, el usuario pierde la autenticación. [^1]
+- `/password` (PUT): Abierto a **usuarios autenticados**.
+    - El usuario actual puede cambiar su contraseña.
+    - La nueva contraseña debe ser diferente de la contraseña actual.
+- `/logout` (DELETE): Abierto a **usuarios autenticados**.
+    - Cierra la sesión del usuario eliminando el token de acceso JWT de las cookies y borrando la sesión de la base
+      de datos.
 
-### Users (`/api/v1/users`)
+### Usuarios (`/api/v1/users`)
 
-- `/` (POST): Open to **admins**.
-    - Creates a new user, including admins, if the username is unique.
-    - Only super admins can create new admins.
-- `/` (GET): Open to **admins**.
-    - Retrieves a paginated list of existing users with relevant information.
-- `/{user_id}/password` (PUT): Open to **admins**.
-    - Admins can set passwords of subordinate users.
-- `/{user_id}/roles/admin` (PUT): Open to **super admins**.
-    - Grants admin rights to a specified user.
-    - Super admin rights cannot be changed.
-- `/{user_id}/roles/admin` (DELETE): Open to **super admins**.
-    - Revokes admin rights from a specified user.
-    - Super admin rights cannot be changed.
-- `/{user_id}/activation` (PUT): Open to **admins**.
-    - Restores a previously soft-deleted user.
-    - Only super admins can activate other admins.
-- `/{user_id}/activation` (DELETE): Open to **admins**.
-    - Soft-deletes an existing user, making that user inactive.
-    - Also deletes the user's sessions.
-    - Only super admins can deactivate other admins.
-    - Super admins cannot be soft-deleted.
+- `/` (POST): Abierto a **administradores**.
+    - Crea un nuevo usuario, incluyendo administradores, si el nombre de usuario es único.
+    - Solo los super administradores pueden crear nuevos administradores.
+- `/` (GET): Abierto a **administradores**.
+    - Recupera una lista paginada de usuarios existentes con información relevante.
+- `/{user_id}/password` (PUT): Abierto a **administradores**.
+    - Los administradores pueden establecer contraseñas de usuarios subordinados.
+- `/{user_id}/roles/admin` (PUT): Abierto a **super administradores**.
+    - Otorga derechos de administrador a un usuario especificado.
+    - Los derechos de super administrador no pueden ser modificados.
+- `/{user_id}/roles/admin` (DELETE): Abierto a **super administradores**.
+    - Revoca derechos de administrador de un usuario especificado.
+    - Los derechos de super administrador no pueden ser modificados.
+- `/{user_id}/activation` (PUT): Abierto a **administradores**.
+    - Restaura un usuario previamente eliminado de forma suave.
+    - Solo los super administradores pueden activar a otros administradores.
+- `/{user_id}/activation` (DELETE): Abierto a **administradores**.
+    - Realiza una eliminación suave de un usuario existente, haciéndolo inactivo.
+    - También elimina las sesiones del usuario.
+    - Solo los super administradores pueden desactivar a otros administradores.
+    - Los super administradores no pueden ser eliminados de forma suave.
 
 > [!NOTE]
-> - Super admin privileges must be initially granted manually (e.g., directly in the database), though the user
-    account itself can be created through the API.
+> - Los privilegios de super administrador deben otorgarse inicialmente de forma manual (ej., directamente en la base
+    de datos), aunque la cuenta de usuario en sí puede crearse a través de la API.
 
-## Configuration
+## Configuración
 
 > [!WARNING]
-> - This part of documentation is **not** related to the architecture approach.
-> - Use any configuration method you prefer.
+> - Esta parte de la documentación **no** está relacionada con el enfoque de arquitectura.
+> - Usa cualquier método de configuración que prefieras.
 
-### Files
+### Archivos
 
-- **config.toml**: Main application settings organized in sections
-- **export.toml**: Lists fields to export to .env (`export.fields = ["postgres.USER", "postgres.PASSWORD", ...]`)
-- **.secrets.toml**: Optional sensitive data (same format as config.toml, merged with main config)
+- **config.toml**: Ajustes principales de la aplicación organizados en secciones
+- **export.toml**: Lista los campos a exportar a .env (`export.fields = ["postgres.USER", "postgres.PASSWORD", ...]`)
+- **.secrets.toml**: Datos sensibles opcionales (mismo formato que config.toml, se fusiona con la configuración principal)
 
 > [!IMPORTANT]
-> - This project includes secret files for demonstration purposes only. In a real project, you **must** ensure that
-    `.secrets.toml` and all `.env` files are not tracked by version control system to prevent exposing sensitive
-    information. See this project's `.gitignore` for an example of how to properly exclude these sensitive files from
-    Git.
+> - Este proyecto incluye archivos secretos solo con fines de demostración. En un proyecto real, **debes** asegurarte
+    de que `.secrets.toml` y todos los archivos `.env` no sean rastreados por el sistema de control de versiones para
+    evitar exponer información sensible. Consulta el `.gitignore` de este proyecto para ver un ejemplo de cómo excluir
+    correctamente estos archivos sensibles de Git.
 
-### Flow
+### Flujo
 
-In this project I use my own configuration system based on TOML files as the single source of truth.
-The system generates `.env` files for Docker and infrastructure components while the application reads settings directly
-from the structured TOML files. More details are available at https://github.com/ivan-borovets/toml-config-manager
+En este proyecto utilizo mi propio sistema de configuración basado en archivos TOML como fuente única de verdad.
+El sistema genera archivos `.env` para Docker y componentes de infraestructura, mientras que la aplicación lee los
+ajustes directamente desde los archivos TOML estructurados. Más detalles disponibles en
+https://github.com/ivan-borovets/toml-config-manager
 
 <p align="center">
-  <img src="docs/toml_config_manager.svg" alt="Configuration flow" />
-  <br><em>Figure 15: Configuration flow </em>
-  <br><small>Here, the arrows represent usage flow, <b>not dependencies.</b></small>
+  <img src="docs/toml_config_manager.svg" alt="Flujo de configuración" />
+  <br><em>Figura 15: Flujo de configuración</em>
+  <br><small>Aquí, las flechas representan el flujo de uso, <b>no dependencias.</b></small>
 </p>
 
-### Local Environment
+### Entorno Local
 
-1. Configure local environment
+1. Configurar el entorno local
 
-* In this project, local configuration is already prepared in `config/local/`.  
-  Nothing needs to be created — adjust files only if you want to change defaults.
-* If you want to adjust settings, edit the existing TOML files in `config/local/` directly.  
-  `.env.local` will be generated automatically — **don’t** create or edit it manually.
-* Docker Compose in this project is already configured with `APP_ENV`.  
-  Just keep in mind this variable if you change the setup:
+* En este proyecto, la configuración local ya está preparada en `config/local/`.
+  No necesitas crear nada — ajusta los archivos solo si deseas cambiar los valores por defecto.
+* Si deseas ajustar los parámetros, edita los archivos TOML existentes en `config/local/` directamente.
+  `.env.local` se generará automáticamente — **no** lo crees ni edites manualmente.
+* Docker Compose en este proyecto ya está configurado con `APP_ENV`.
+  Solo ten en cuenta esta variable si cambias la configuración:
 
 ```yaml
 services:
@@ -603,7 +627,7 @@ services:
       APP_ENV: ${APP_ENV}
 ```
 
-2. Set environment variable
+2. Establecer variable de entorno
 
 ```shell
 export APP_ENV=local
@@ -611,16 +635,16 @@ export APP_ENV=local
 # export APP_ENV=prod
 ```
 
-3. Check it and generate `.env`
+3. Verificar y generar `.env`
 
 ```shell
-# Probably you'll need Python 3.13 installed on your system to run these commands. 
-# The next code section provides commands for its fast installation.
-make env  # should print APP_ENV=local
-make dotenv  # should tell you where .env.local was generated
+# Probablemente necesitarás Python 3.13 instalado en tu sistema para ejecutar estos comandos.
+# La siguiente sección de código proporciona comandos para su instalación rápida.
+make env  # debería imprimir APP_ENV=local
+make dotenv  # debería indicarte dónde se generó .env.local
 ```
 
-4. Install `uv`
+4. Instalar `uv`
 
 ```shell
 # sudo apt update
@@ -628,93 +652,93 @@ make dotenv  # should tell you where .env.local was generated
 # pipx ensurepath
 # pipx install uv
 # https://docs.astral.sh/uv/getting-started/installation/#shell-autocompletion
-# uv python install 3.13  # To install Python
+# uv python install 3.13  # Para instalar Python
 ```
 
-5. Set up virtual environment
+5. Configurar el entorno virtual
 
 ```shell
 uv sync --group dev
 source .venv/bin/activate
 
-# Alternatively,
+# Alternativamente,
 # uv v
-# source .venv/bin/activate  # on Unix
-# .venv\Scripts\activate  # on Windows
+# source .venv/bin/activate  # en Unix
+# .venv\Scripts\activate  # en Windows
 # uv pip install -e . --group dev
 ```
 
-Don't forget to tell your IDE where the interpreter is located.
+No olvides indicarle a tu IDE dónde se encuentra el intérprete.
 
-Install pre-commit hooks:
+Instalar hooks de pre-commit:
 
 ```shell
 # https://pre-commit.com/
 pre-commit install
 ```
 
-6. Launch
+6. Lanzamiento
 
-- To run only the database in Docker and use the app locally, use the following command:
+- Para ejecutar solo la base de datos en Docker y usar la aplicación localmente, usa el siguiente comando:
 
     ```shell
     make up.db
     # make up.db-echo
     ```
 
-- Then, apply the migrations:
+- Luego, aplica las migraciones:
     ```shell
     alembic upgrade head
     ```
 
-- After applying the migrations, the database is ready, and you can launch the application locally (e.g., through your
-  IDE). Remember to set the `APP_ENV` environment variable in your IDE's run configuration.
+- Después de aplicar las migraciones, la base de datos está lista, y puedes lanzar la aplicación localmente (ej., a
+  través de tu IDE). Recuerda establecer la variable de entorno `APP_ENV` en la configuración de ejecución de tu IDE.
 
-- To run via Docker Compose:
+- Para ejecutar vía Docker Compose:
 
     ```shell
     make up
     # make up.echo
     ```
 
-  In this case, migrations will be applied automatically at startup.
+  En este caso, las migraciones se aplicarán automáticamente al inicio.
 
-7. Shutdown
+7. Apagado
 
-- To stop the containers, use:
+- Para detener los contenedores, usa:
     ```shell
     make down
     ```
 
-### Other Environments (dev/prod)
+### Otros Entornos (dev/prod)
 
-1. Use the instructions about [local environment](#local-environment) above
+1. Usa las instrucciones sobre el [entorno local](#entorno-local) de arriba
 
-* But make sure you've created similar structure in `config/dev` or `config/prod` with [files](#files):
+* Pero asegúrate de haber creado una estructura similar en `config/dev` o `config/prod` con los [archivos](#archivos):
     * `config.toml`
     * `.secrets.toml`
     * `export.toml`
-    * `docker-compose.yaml` if needed
-* `.env.dev` or `.env.prod` to be generated later — **don't** create them manually
+    * `docker-compose.yaml` si es necesario
+* `.env.dev` o `.env.prod` se generarán después — **no** los crees manualmente
 
-### Adding New Environments
+### Añadir Nuevos Entornos
 
-1. Add new value to `ValidEnvs` enum in `config/toml_config_manager.py` (and maybe in your app settings)
-2. Update `ENV_TO_DIR_PATHS` mapping in the same file (and maybe in your app settings)
-3. Create corresponding directory in `config/` folder
-4. Add required configuration [files](#files)
+1. Agrega un nuevo valor al enum `ValidEnvs` en `config/toml_config_manager.py` (y posiblemente en los ajustes de tu aplicación)
+2. Actualiza el mapeo `ENV_TO_DIR_PATHS` en el mismo archivo (y posiblemente en los ajustes de tu aplicación)
+3. Crea el directorio correspondiente en la carpeta `config/`
+4. Agrega los [archivos](#archivos) de configuración necesarios
 
-Environment directories can also contain other env-specific files like `docker-compose.yaml`, which will be used by
-Makefile commands.
+Los directorios de entorno también pueden contener otros archivos específicos del entorno como `docker-compose.yaml`,
+que serán utilizados por los comandos del Makefile.
 
-# Useful Resources
+# Recursos Útiles
 
-## Layered Architecture
+## Arquitectura por Capas
 
 - [Robert C. Martin. Clean Architecture: A Craftsman's Guide to Software Structure and Design. 2017](https://www.amazon.com/Clean-Architecture-Craftsmans-Software-Structure/dp/0134494164)
 
 - [Alistair Cockburn. Hexagonal Architecture Explained. 2024](https://www.amazon.com/Hexagonal-Architecture-Explained-Alistair-Cockburn-ebook/dp/B0D4JQJ8KD)
-  (introduced in 2005)
+  (introducida en 2005)
 
 ## Domain-Driven Design
 
@@ -726,24 +750,24 @@ Makefile commands.
 
 - [Martin Fowler. Patterns of Enterprise Application Architecture. 2002](https://www.amazon.com/Patterns-Enterprise-Application-Architecture-Martin/dp/0321127420)
 
-## Adjacent
+## Relacionados
 
 - [Vladimir Khorikov. Unit Testing Principles. 2020](https://www.amazon.com/Unit-Testing-Principles-Practices-Patterns/dp/1617296279)
 
-# ⭐ Support the Project
+# ⭐ Apoya el Proyecto
 
-If you find this project useful, please give it a star or share it!
-Your support means a lot.
+Si encuentras este proyecto útil, ¡dale una estrella o compártelo!
+Tu apoyo significa mucho.
 
-👉 Check out the amazing [fastapi-error-map](https://github.com/ivan-borovets/fastapi-error-map), used here to enable
-contextual, per-route error handling with automatic OpenAPI schema generation.
+👉 Échale un vistazo al increíble [fastapi-error-map](https://github.com/ivan-borovets/fastapi-error-map), utilizado
+aquí para habilitar el manejo contextual de errores por ruta con generación automática del esquema OpenAPI.
 
-💬 Feel free to open issues, ask questions, or submit pull requests.
+💬 No dudes en abrir issues, hacer preguntas o enviar pull requests.
 
-# Acknowledgements
+# Agradecimientos
 
-I would like to express my sincere gratitude to the following individuals for their valuable ideas and support in
-satisfying my curiosity throughout the development of this project:
+Me gustaría expresar mi sincera gratitud a las siguientes personas por sus valiosas ideas y apoyo en satisfacer mi
+curiosidad a lo largo del desarrollo de este proyecto:
 [igoryuha](https://github.com/igoryuha),
 [tishka17](https://github.com/tishka17),
 [chessenjoyer17](https://github.com/chessenjoyer17),
@@ -755,17 +779,18 @@ satisfying my curiosity throughout the development of this project:
 [ApostolFet](https://github.com/ApostolFet),
 Lancetnik, Sehat1137, Maclovi.
 
-I also greatly appreciate the valuable insights shared by participants of the ASGI Community Telegram chat, despite
-frequent and lively communication challenges, as well as the ⚗️ Reagento (adaptix/dishka)
-[Telegram chat](https://t.me/reagento_ru) for their thoughtful discussions and generous knowledge exchange.
+También aprecio enormemente las valiosas aportaciones compartidas por los participantes del chat de Telegram de la
+Comunidad ASGI, a pesar de los frecuentes y animados desafíos de comunicación, así como el chat de Telegram de
+⚗️ Reagento (adaptix/dishka) [Telegram](https://t.me/reagento_ru) por sus reflexivas discusiones y generoso
+intercambio de conocimientos.
 
-# Todo
+# Pendientes
 
-- [x] set up CI
-- [x] simplify settings
-- [x] simplify annotations
-- [ ] add integration tests
-- [ ] explain design choices
+- [x] configurar CI
+- [x] simplificar ajustes
+- [x] simplificar anotaciones
+- [ ] agregar tests de integración
+- [ ] explicar decisiones de diseño
 
-[^1]: Session and token share the same expiry time, avoiding database reads if the token is expired.
-This scheme of using JWT **is not** related to OAuth 2.0 and is a custom micro-optimization.
+[^1]: La sesión y el token comparten el mismo tiempo de expiración, evitando lecturas a la base de datos si el token ha
+expirado. Este esquema de uso de JWT **no está** relacionado con OAuth 2.0 y es una micro-optimización personalizada.
